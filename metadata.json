@@ -1,0 +1,6 @@
+{
+  "name": "Vortex · React Native Studio",
+  "description": "Site estético de alta performance utilizando os principais elementos e componentes do React Native em preto, verde e branco.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
