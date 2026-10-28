@@ -1,119 +1,94 @@
-import React, { useState, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   Pressable,
+  Switch,
   FlatList,
   SectionList,
   StyleSheet,
 } from 'react-native';
+import { CrudCategory, CrudItem } from '../types/crud';
 
-interface TaskItem {
-  id: string;
-  title: string;
-  tag: string;
-  done: boolean;
+interface ListsScreenProps {
+  items: CrudItem[];
+  onToggleItem: (id: string) => void;
+  onDeleteItem: (id: string) => void;
+  onEditItem: (item: CrudItem) => void;
+  onResetDefaults: () => void;
+  onNavigateToCreate: () => void;
 }
 
-interface SectionData {
-  title: string;
-  data: string[];
-}
-
-const initialFlatTasks: TaskItem[] = [
-  { id: '1', title: 'Virtualização com FlatList para rolagem a 60 FPS', tag: 'Core', done: true },
-  { id: '2', title: 'Adicionar keyExtractor com IDs estáveis e únicos', tag: 'Chaves', done: true },
-  { id: '3', title: 'Utilizar SectionList para listas com categorias', tag: 'Seções', done: true },
-  { id: '4', title: 'Definir getItemLayout para prever alturas fixas', tag: 'Perf', done: false },
-  { id: '5', title: 'Otimizar renderItem com React.memo', tag: 'Memo', done: false },
-  { id: '6', title: 'Remover console.log em builds de produção', tag: 'Build', done: false },
-  { id: '7', title: 'Ativar Hermes Engine para compilação bytecode', tag: 'Engine', done: false },
-];
-
-const initialSections: SectionData[] = [
-  {
-    title: 'Basic Components',
-    data: ['View', 'Text', 'Image', 'TextInput', 'Pressable', 'ScrollView', 'StyleSheet'],
-  },
-  {
-    title: 'User Interface',
-    data: ['Button', 'Switch'],
-  },
-  {
-    title: 'List Views (Virtualizados)',
-    data: ['FlatList', 'SectionList'],
-  },
-];
-
-export interface ListsScreenHandle {
-  scrollToTop: () => void;
-}
-
-export const ListsScreen = forwardRef<ListsScreenHandle>((_props, ref) => {
-  const [flatTasks, setFlatTasks] = useState<TaskItem[]>(initialFlatTasks);
+export const ListsScreen: React.FC<ListsScreenProps> = ({
+  items,
+  onToggleItem,
+  onDeleteItem,
+  onEditItem,
+  onResetDefaults,
+  onNavigateToCreate,
+}) => {
   const [activeTab, setActiveTab] = useState<'flatlist' | 'sectionlist'>('flatlist');
   const [search, setSearch] = useState('');
-  const [newTitle, setNewTitle] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  const flatListRef = useRef<FlatList<TaskItem>>(null);
-  const sectionListRef = useRef<SectionList<string, SectionData>>(null);
+  // Filter items based on search and category
+  const filteredItems = useMemo(() => {
+    return items.filter((it) => {
+      const matchCat =
+        selectedCategory === 'all' || it.category === selectedCategory;
+      const matchSearch =
+        !search.trim() ||
+        it.title.toLowerCase().includes(search.toLowerCase()) ||
+        it.description.toLowerCase().includes(search.toLowerCase()) ||
+        it.category.toLowerCase().includes(search.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [items, search, selectedCategory]);
 
-  useImperativeHandle(ref, () => ({
-    scrollToTop: () => {
-      if (activeTab === 'flatlist') {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      } else {
-        sectionListRef.current?.scrollToLocation({
-          sectionIndex: 0,
-          itemIndex: 0,
-          animated: true,
-        });
-      }
-    },
-  }));
+  // Group items for SectionList
+  const sectionedData = useMemo(() => {
+    const categories: CrudCategory[] = ['Performance', 'UI/UX', 'Arquitetura', 'Nativo'];
+    return categories
+      .map((cat) => ({
+        title: cat,
+        data: filteredItems.filter((it) => it.category === cat),
+      }))
+      .filter((sec) => sec.data.length > 0);
+  }, [filteredItems]);
 
-  // Filter for FlatList
-  const filteredTasks = useMemo(() => {
-    if (!search.trim()) return flatTasks;
-    const q = search.toLowerCase();
-    return flatTasks.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.tag.toLowerCase().includes(q)
-    );
-  }, [flatTasks, search]);
+  const activeCount = useMemo(() => items.filter((it) => it.active).length, [items]);
 
-  const handleToggle = (id: string) => {
-    setFlatTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    setFlatTasks((prev) => prev.filter((t) => t.id !== id));
-  };
-
-  const handleAdd = () => {
-    if (!newTitle.trim()) return;
-    const newTask: TaskItem = {
-      id: Date.now().toString(),
-      title: newTitle.trim(),
-      tag: 'Custom',
-      done: false,
-    };
-    setFlatTasks((prev) => [newTask, ...prev]);
-    setNewTitle('');
-  };
-
-  // Shared Header for the screen
-  const renderSharedHeader = (
+  // Header Component for seamless full-page scrolling
+  const renderListHeader = (
     <View style={styles.headerContainer}>
-      {/* Intro Badge & Title */}
+      {/* Title & Badge */}
       <View style={styles.introHeader}>
-        <Text style={styles.badge}>LIST VIEWS (ALTA PERFORMANCE)</Text>
-        <Text style={styles.mainTitle}>Listas Virtuais</Text>
+        <View style={styles.badgeRow}>
+          <Text style={styles.badge}>GERENCIAR CRUD · READ / UPDATE / DELETE</Text>
+          <Text style={styles.badgeFps}>60 FPS VIRTUAL</Text>
+        </View>
+        <Text style={styles.mainTitle}>Listagem & Gestão</Text>
         <Text style={styles.subtitle}>
-          Unlike the more generic ScrollView, list view components only render elements that are currently showing on the screen.
+          Visualização dos registros em memória via &lt;FlatList&gt; e &lt;SectionList&gt;. Alterne o status, edite ou exclua qualquer registro.
         </Text>
+      </View>
+
+      {/* KPI Stats Strip */}
+      <View style={styles.statsStrip}>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>TOTAL DE ITENS</Text>
+          <Text style={styles.statValue}>{items.length}</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>STATUS ATIVO</Text>
+          <Text style={[styles.statValue, styles.statGreen]}>{activeCount}</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statLabel}>PENDENTES</Text>
+          <Text style={styles.statValue}>{items.length - activeCount}</Text>
+        </View>
       </View>
 
       {/* Segmented Switch: FlatList vs SectionList */}
@@ -128,7 +103,7 @@ export const ListsScreen = forwardRef<ListsScreenHandle>((_props, ref) => {
               activeTab === 'flatlist' && styles.segmentBtnTextActive,
             ]}
           >
-            &lt;FlatList /&gt;
+            &lt;FlatList /&gt; (Lista Única)
           </Text>
         </Pressable>
 
@@ -142,65 +117,124 @@ export const ListsScreen = forwardRef<ListsScreenHandle>((_props, ref) => {
               activeTab === 'sectionlist' && styles.segmentBtnTextActive,
             ]}
           >
-            &lt;SectionList /&gt;
+            &lt;SectionList /&gt; (Agrupada)
           </Text>
         </Pressable>
       </View>
 
-      {/* Concept Explainer Banner */}
-      <View style={styles.conceptCard}>
-        <View style={styles.conceptTagRow}>
-          <Text style={styles.conceptTag}>
-            {activeTab === 'flatlist' ? '<FlatList />' : '<SectionList />'}
-          </Text>
-          <Text style={styles.conceptFps}>60 FPS Virtual</Text>
-        </View>
+      {/* Search Input Bar */}
+      <View style={styles.searchCard}>
+        <Text style={styles.filterTitle}>BUSCA INSTANTÂNEA NO CRUD:</Text>
+        <TextInput
+          style={styles.searchInput}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Filtrar por nome, descrição ou categoria..."
+          placeholderTextColor="#525252"
+        />
 
-        <Text style={styles.conceptDesc}>
-          {activeTab === 'flatlist'
-            ? 'A component for rendering performant scrollable lists.'
-            : 'Like FlatList, but for sectioned lists.'}
-        </Text>
-        <Text style={styles.conceptExplainer}>
-          {activeTab === 'flatlist'
-            ? 'Recicla itens fora do viewport. Ideal para listas longas, feeds de redes sociais e históricos.'
-            : 'Agrupa itens por categorias com suporte a cabeçalhos fixos (renderSectionHeader).'}
-        </Text>
+        {/* Category Filter Pills */}
+        <View style={styles.filterPillsRow}>
+          {['all', 'Performance', 'UI/UX', 'Arquitetura', 'Nativo'].map((cat) => (
+            <Pressable
+              key={cat}
+              style={[
+                styles.pillBtn,
+                selectedCategory === cat && styles.pillBtnActive,
+              ]}
+              onPress={() => setSelectedCategory(cat)}
+            >
+              <Text
+                style={[
+                  styles.pillBtnText,
+                  selectedCategory === cat && styles.pillBtnTextActive,
+                ]}
+              >
+                {cat === 'all' ? 'Todos' : cat}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {/* Controls only shown in FlatList mode */}
-      {activeTab === 'flatlist' && (
-        <View style={styles.controlsCard}>
-          <View style={styles.searchRow}>
-            <TextInput
-              style={styles.searchInput}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Buscar nas tarefas (TextInput)..."
-              placeholderTextColor="#525252"
-            />
-          </View>
+      {/* Section Subtitle */}
+      <View style={styles.listSubheader}>
+        <Text style={styles.listSubheaderText}>
+          {activeTab === 'flatlist'
+            ? `REGISTROS RENDERIZADOS VIA FLATLIST (${filteredItems.length})`
+            : `REGISTROS AGRUPADOS VIA SECTIONLIST (${filteredItems.length})`}
+        </Text>
+        {items.length === 0 && (
+          <Pressable onPress={onResetDefaults}>
+            <Text style={styles.resetText}>Restaurar Padrões</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
 
-          <View style={styles.addRow}>
-            <TextInput
-              style={[styles.searchInput, styles.addInput]}
-              value={newTitle}
-              onChangeText={setNewTitle}
-              placeholder="Nova tarefa na FlatList..."
-              placeholderTextColor="#525252"
-              onSubmitEditing={handleAdd}
-            />
-            <Pressable style={styles.addBtn} onPress={handleAdd}>
-              <Text style={styles.addBtnText}>+ Inserir</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>ITENS NA VIRTUALIZAÇÃO:</Text>
-            <Text style={styles.statsCount}>{filteredTasks.length} tarefas · 60 FPS</Text>
-          </View>
+  // Render Item for both lists
+  const renderCrudItem = (item: CrudItem) => (
+    <View style={styles.crudCard}>
+      {/* Top row: Image thumbnail + Title + Category */}
+      <View style={styles.cardTopRow}>
+        <View style={styles.imageBox}>
+          <Image
+            source={{ uri: item.imageUri }}
+            style={styles.cardImage}
+            resizeMode="cover"
+          />
         </View>
-      )}
+
+        <View style={styles.cardMainInfo}>
+          <View style={styles.titleCatRow}>
+            <Text style={styles.cardCategory}>{item.category}</Text>
+            <Text style={styles.cardDate}>{item.createdAt}</Text>
+          </View>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+        </View>
+      </View>
+
+      {/* Description with numberOfLines={2} */}
+      <Text numberOfLines={2} style={styles.cardDesc}>
+        {item.description}
+      </Text>
+
+      {/* Bottom actions row: Switch (Update status) + Edit button + Delete button */}
+      <View style={styles.cardActionsRow}>
+        <View style={styles.statusToggle}>
+          <Switch
+            value={item.active}
+            onValueChange={() => onToggleItem(item.id)}
+            trackColor={{ false: '#262626', true: '#22c55e' }}
+            thumbColor="#ffffff"
+          />
+          <Text
+            style={[
+              styles.statusLabel,
+              item.active ? styles.statusActive : styles.statusInactive,
+            ]}
+          >
+            {item.active ? 'ATIVO' : 'PENDENTE'}
+          </Text>
+        </View>
+
+        <View style={styles.buttonActionGroup}>
+          <Pressable
+            style={styles.editBtn}
+            onPress={() => onEditItem(item)}
+          >
+            <Text style={styles.editBtnText}>✏️ Editar</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.deleteBtn}
+            onPress={() => onDeleteItem(item.id)}
+          >
+            <Text style={styles.deleteBtnText}>🗑️ Excluir</Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 
@@ -208,77 +242,69 @@ export const ListsScreen = forwardRef<ListsScreenHandle>((_props, ref) => {
     <View style={styles.container}>
       {activeTab === 'flatlist' ? (
         <FlatList
-          ref={flatListRef}
-          data={filteredTasks}
-          keyExtractor={(item: TaskItem) => item.id}
-          ListHeaderComponent={renderSharedHeader}
+          data={filteredItems}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderListHeader}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }: { item: TaskItem }) => (
-            <View style={styles.listItem}>
-              <Pressable
-                style={styles.itemLeft}
-                onPress={() => handleToggle(item.id)}
-              >
-                <Text style={styles.checkbox}>{item.done ? '✓' : '○'}</Text>
-                <Text
-                  style={[styles.itemText, item.done && styles.itemTextDone]}
-                >
-                  {item.title}
-                </Text>
-              </Pressable>
-
-              <View style={styles.itemRight}>
-                <Text style={styles.itemTag}>{item.tag}</Text>
-                <Pressable
-                  style={styles.deleteBtn}
-                  onPress={() => handleDelete(item.id)}
-                >
-                  <Text style={styles.deleteBtnText}>✕</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
+          showsVerticalScrollIndicator={true}
+          renderItem={({ item }) => renderCrudItem(item)}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>Nenhuma tarefa encontrada.</Text>
+              <Text style={styles.emptyTitle}>Nenhum registro encontrado</Text>
+              <Text style={styles.emptyDesc}>
+                Tente ajustar a busca ou adicione um novo registro no CRUD.
+              </Text>
+              <View style={styles.emptyActions}>
+                <Pressable
+                  style={styles.emptyBtnPrimary}
+                  onPress={onNavigateToCreate}
+                >
+                  <Text style={styles.emptyBtnPrimaryText}>+ Criar Novo Registro</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.emptyBtnSecondary}
+                  onPress={onResetDefaults}
+                >
+                  <Text style={styles.emptyBtnSecondaryText}>Restaurar Originais</Text>
+                </Pressable>
+              </View>
             </View>
           }
           ListFooterComponent={
             <View style={styles.footerCodeCard}>
               <Text style={styles.codeText}>
-                &lt;FlatList data=&#123;data&#125; renderItem=&#123;renderItem&#125; keyExtractor=&#123;key&#125; /&gt;
+                &lt;FlatList data=&#123;itensCRUD&#125; renderItem=&#123;renderCard&#125; keyExtractor=&#123;(it) =&gt; it.id&#125; /&gt;
               </Text>
             </View>
           }
         />
       ) : (
         <SectionList
-          ref={sectionListRef}
-          sections={initialSections}
-          keyExtractor={(item: string, index: number) => item + index}
-          ListHeaderComponent={renderSharedHeader}
+          sections={sectionedData}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={renderListHeader}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          renderSectionHeader={({ section: { title } }) => (
+          showsVerticalScrollIndicator={true}
+          renderSectionHeader={({ section: { title, data } }) => (
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{title}</Text>
-              <Text style={styles.sectionBadge}>SEÇÃO</Text>
+              <Text style={styles.sectionBadge}>{data.length} ITENS</Text>
             </View>
           )}
-          renderItem={({ item }: { item: string }) => (
-            <View style={styles.sectionItem}>
-              <View style={styles.bullet} />
-              <Text style={styles.sectionItemText}>{item}</Text>
-            </View>
-          )}
+          renderItem={({ item }) => renderCrudItem(item)}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           SectionSeparatorComponent={() => <View style={styles.sectionSeparator} />}
+          ListEmptyComponent={
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>Nenhuma seção disponível</Text>
+              <Text style={styles.emptyDesc}>Não há itens correspondentes aos filtros.</Text>
+            </View>
+          }
           ListFooterComponent={
             <View style={styles.footerCodeCard}>
               <Text style={styles.codeText}>
-                &lt;SectionList sections=&#123;secoes&#125; renderSectionHeader=&#123;header&#125; /&gt;
+                &lt;SectionList sections=&#123;dadosAgrupados&#125; renderSectionHeader=&#123;header&#125; /&gt;
               </Text>
             </View>
           }
@@ -286,9 +312,7 @@ export const ListsScreen = forwardRef<ListsScreenHandle>((_props, ref) => {
       )}
     </View>
   );
-});
-
-ListsScreen.displayName = 'ListsScreen';
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -296,38 +320,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 90,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 110,
   },
   headerContainer: {
-    gap: 14,
-    marginBottom: 12,
+    gap: 16,
+    marginBottom: 16,
   },
   introHeader: {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    paddingBottom: 14,
+    paddingBottom: 16,
+    gap: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   badge: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#22c55e',
     fontFamily: 'monospace',
     letterSpacing: 1,
-    marginBottom: 4,
+  },
+  badgeFps: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    color: '#ffffff',
+    backgroundColor: '#122416',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1d3e23',
   },
   mainTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#a3a3a3',
-    marginTop: 4,
-    lineHeight: 18,
+    lineHeight: 20,
+  },
+  statsStrip: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: '#070b08',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    gap: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    color: '#737373',
+    fontWeight: '700',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#ffffff',
+    fontFamily: 'monospace',
+  },
+  statGreen: {
+    color: '#22c55e',
   },
   segmentContainer: {
     flexDirection: 'row',
@@ -335,12 +405,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
-    padding: 3,
+    padding: 4,
     gap: 4,
   },
   segmentBtn: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -356,165 +426,245 @@ const styles = StyleSheet.create({
   segmentBtnTextActive: {
     color: '#000000',
   },
-  conceptCard: {
-    backgroundColor: '#080c09',
-    borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.3)',
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
-  },
-  conceptTagRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  conceptTag: {
-    fontSize: 12,
-    fontFamily: 'monospace',
-    fontWeight: '700',
-    color: '#22c55e',
-  },
-  conceptFps: {
-    fontSize: 10,
-    fontFamily: 'monospace',
-    color: '#22c55e',
-    fontWeight: '700',
-  },
-  conceptDesc: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  conceptExplainer: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    lineHeight: 16,
-  },
-  controlsCard: {
+  searchCard: {
     backgroundColor: '#070b08',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
-    padding: 12,
+    padding: 14,
     gap: 10,
   },
-  searchRow: {
-    width: '100%',
+  filterTitle: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: '#737373',
   },
   searchInput: {
     backgroundColor: '#000000',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 8,
     color: '#ffffff',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 13,
   },
-  addRow: {
+  filterPillsRow: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 6,
+    paddingTop: 2,
   },
-  addInput: {
-    flex: 1,
+  pillBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#0d130e',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  addBtn: {
+  pillBtnActive: {
     backgroundColor: '#22c55e',
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: '#22c55e',
   },
-  addBtnText: {
+  pillBtnText: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: '#8a8a8a',
+    fontWeight: '600',
+  },
+  pillBtnTextActive: {
     color: '#000000',
-    fontWeight: '700',
-    fontSize: 12,
+    fontWeight: '800',
   },
-  statsRow: {
+  listSubheader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    paddingHorizontal: 4,
   },
-  statsLabel: {
-    fontSize: 10,
-    fontFamily: 'monospace',
-    color: '#737373',
-  },
-  statsCount: {
-    fontSize: 10,
+  listSubheaderText: {
+    fontSize: 11,
     fontFamily: 'monospace',
     fontWeight: '700',
     color: '#22c55e',
   },
-  listItem: {
+  resetText: {
+    fontSize: 11,
+    color: '#22c55e',
+    textDecorationLine: 'underline',
+  },
+  crudCard: {
     backgroundColor: '#080c09',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  },
+  cardTopRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  imageBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#050705',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardMainInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  titleCatRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 10,
   },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  checkbox: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#22c55e',
-    width: 20,
-    textAlign: 'center',
-  },
-  itemText: {
-    fontSize: 13,
-    color: '#ffffff',
-    flex: 1,
-  },
-  itemTextDone: {
-    color: '#525252',
-    textDecorationLine: 'line-through',
-  },
-  itemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  itemTag: {
+  cardCategory: {
     fontSize: 10,
     fontFamily: 'monospace',
+    fontWeight: '700',
     color: '#22c55e',
     backgroundColor: '#0c160e',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#193420',
   },
-  deleteBtn: {
-    padding: 4,
+  cardDate: {
+    fontSize: 10,
+    color: '#737373',
+    fontFamily: 'monospace',
   },
-  deleteBtnText: {
-    fontSize: 12,
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  cardDesc: {
+    fontSize: 13,
+    color: '#a3a3a3',
+    lineHeight: 18,
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusLabel: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
+  statusActive: {
+    color: '#22c55e',
+  },
+  statusInactive: {
     color: '#737373',
   },
+  buttonActionGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editBtn: {
+    backgroundColor: '#0e1711',
+    borderWidth: 1,
+    borderColor: '#1f3824',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  editBtnText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deleteBtn: {
+    backgroundColor: '#170c0c',
+    borderWidth: 1,
+    borderColor: '#381f1f',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  deleteBtnText: {
+    color: '#f87171',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   separator: {
-    height: 6,
+    height: 12,
   },
   emptyCard: {
-    padding: 24,
-    alignItems: 'center',
     backgroundColor: '#080c09',
-    borderRadius: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    padding: 32,
+    alignItems: 'center',
+    gap: 8,
   },
-  emptyText: {
-    color: '#525252',
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  emptyDesc: {
     fontSize: 12,
-    fontFamily: 'monospace',
+    color: '#737373',
+    textAlign: 'center',
+    maxWidth: 260,
+  },
+  emptyActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  emptyBtnPrimary: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  emptyBtnPrimaryText: {
+    color: '#000000',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  emptyBtnSecondary: {
+    backgroundColor: '#121212',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  emptyBtnSecondaryText: {
+    color: '#ffffff',
+    fontSize: 12,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -523,57 +673,37 @@ const styles = StyleSheet.create({
     backgroundColor: '#0d1810',
     borderWidth: 1,
     borderColor: '#18301e',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 8,
-    marginBottom: 4,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 12,
+    marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
     fontFamily: 'monospace',
   },
   sectionBadge: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: 'monospace',
     color: '#22c55e',
     fontWeight: '700',
   },
-  sectionItem: {
-    backgroundColor: '#080c09',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  bullet: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22c55e',
-  },
-  sectionItemText: {
-    fontSize: 13,
-    color: '#d4d4d4',
-    fontFamily: 'monospace',
-  },
   sectionSeparator: {
-    height: 8,
+    height: 12,
   },
   footerCodeCard: {
     backgroundColor: '#050705',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 16,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 20,
   },
   codeText: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'monospace',
     color: '#22c55e',
   },

@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,439 +10,365 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { CrudCategory, CrudItem } from '../types/crud';
 
-const sampleImageUri =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160" viewBox="0 0 300 160"><rect width="300" height="160" fill="%230c160f"/><circle cx="150" cy="80" r="45" fill="none" stroke="%2322c55e" stroke-width="4"/><circle cx="150" cy="80" r="18" fill="%2322c55e"/><path d="M70,80 Q150,20 230,80 Q150,140 70,80" fill="none" stroke="%23ffffff" stroke-width="2" stroke-dasharray="4,4"/><text x="150" y="145" font-family="monospace" font-size="11" fill="%2322c55e" text-anchor="middle" font-weight="bold">REACT NATIVE &lt;Image /&gt;</text></svg>';
-
-export interface ComponentsScreenHandle {
-  scrollToTop: () => void;
+interface ComponentsScreenProps {
+  onCreateItem: (item: Omit<CrudItem, 'id' | 'createdAt'>) => void;
+  onNavigateToList: () => void;
 }
 
-type ComponentCategory = 'all' | 'textinput' | 'view_text' | 'image' | 'pressable_ui';
+const sampleImageUri =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="150" viewBox="0 0 300 150"><rect width="300" height="150" fill="%230c160f"/><circle cx="150" cy="75" r="42" fill="none" stroke="%2322c55e" stroke-width="4"/><circle cx="150" cy="75" r="16" fill="%2322c55e"/><path d="M75,75 Q150,15 225,75 Q150,135 75,75" fill="none" stroke="%23ffffff" stroke-width="2" stroke-dasharray="4,4"/><text x="150" y="138" font-family="monospace" font-size="11" fill="%2322c55e" text-anchor="middle" font-weight="bold">REACT NATIVE &lt;Image /&gt;</text></svg>';
 
-export const ComponentsScreen = forwardRef<ComponentsScreenHandle>((_props, ref) => {
-  const scrollViewRef = useRef<any>(null);
-
-  useImperativeHandle(ref, () => ({
-    scrollToTop: () => {
-      scrollViewRef.current?.scrollTo?.({ y: 0, animated: true });
-    },
-  }));
-
-  // Quick navigation category filter
-  const [selectedCategory, setSelectedCategory] = useState<ComponentCategory>('all');
-
-  // 1. TextInput state (Echo)
-  const [typedText, setTypedText] = useState('React Native Mobile');
+export const ComponentsScreen: React.FC<ComponentsScreenProps> = ({
+  onCreateItem,
+  onNavigateToList,
+}) => {
+  // CRUD Create form state
+  const [formTitle, setFormTitle] = useState('Novo Componente Reativo');
+  const [formDesc, setFormDesc] = useState('Criado sem backend, persistido em memória.');
+  const [formCategory, setFormCategory] = useState<CrudCategory>('Performance');
+  const [formActive, setFormActive] = useState(true);
   const [isSecure, setIsSecure] = useState(false);
+  const [showCreatedFeedback, setShowCreatedFeedback] = useState(false);
 
-  // 2. View flexbox state
+  // View flexbox demo state
   const [direction, setDirection] = useState<'row' | 'column'>('row');
 
-  // 3. Text numberOfLines state
+  // Text numberOfLines demo state
   const [lines, setLines] = useState<number | undefined>(1);
 
-  // 4. Pressable touch counter
+  // Pressable touch counter
   const [pressCount, setPressCount] = useState(0);
 
-  // 5. Button click counter
-  const [btnClicks, setBtnClicks] = useState(0);
+  const handleCreate = () => {
+    if (!formTitle.trim()) return;
 
-  // 6. Switch state
-  const [switchState, setSwitchState] = useState(true);
+    onCreateItem({
+      title: formTitle.trim(),
+      description: formDesc.trim() || 'Sem descrição.',
+      category: formCategory,
+      active: formActive,
+      imageUri: sampleImageUri,
+    });
 
-  const shouldShow = (category: ComponentCategory) => {
-    return selectedCategory === 'all' || selectedCategory === category;
+    setShowCreatedFeedback(true);
+    setTimeout(() => setShowCreatedFeedback(false), 2500);
   };
 
   return (
     <ScrollView
-      ref={scrollViewRef}
       style={styles.scrollView}
       contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator={true}
     >
-      {/* Header */}
+      {/* Intro Header */}
       <View style={styles.introHeader}>
-        <Text style={styles.badge}>BASIC COMPONENTS & UI</Text>
-        <Text style={styles.mainTitle}>Componentes Básicos</Text>
+        <View style={styles.badgeRow}>
+          <Text style={styles.badge}>CRUD EM MEMÓRIA · REACT NATIVE</Text>
+          <Text style={styles.badgeSub}>SEM BACKEND</Text>
+        </View>
+        <Text style={styles.mainTitle}>Cadastrar Registro</Text>
         <Text style={styles.subtitle}>
-          Os blocos de construção essenciais utilizados por quase todos os aplicativos React Native.
+          Utilize os componentes nativos abaixo para alimentar a lista em tempo real. Cada elemento é explicado e interativo.
         </Text>
       </View>
 
-      {/* Quick Category Navigation Pill Bar */}
-      <View style={styles.quickNavContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickNavScroll}
-        >
-          <Pressable
-            style={[styles.navPill, selectedCategory === 'all' && styles.navPillActive]}
-            onPress={() => setSelectedCategory('all')}
-          >
-            <Text
-              style={[
-                styles.navPillText,
-                selectedCategory === 'all' && styles.navPillTextActive,
-              ]}
-            >
-              Todos (7)
-            </Text>
-          </Pressable>
+      {/* ========================================================================= */}
+      {/* 1. FORMULÁRIO DE CADASTRO DO CRUD (CREATE) COM TEXTINPUT E LIVE ECHO */}
+      {/* ========================================================================= */}
+      <View style={[styles.card, styles.cardHighlight]}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>&lt;TextInput /&gt; · [CREATE]</Text>
+          <Text style={styles.categoryBadge}>Entrada de Dados</Text>
+        </View>
 
-          <Pressable
-            style={[styles.navPill, selectedCategory === 'textinput' && styles.navPillActive]}
-            onPress={() => setSelectedCategory('textinput')}
-          >
-            <Text
-              style={[
-                styles.navPillText,
-                selectedCategory === 'textinput' && styles.navPillTextActive,
-              ]}
-            >
-              TextInput
-            </Text>
-          </Pressable>
+        <Text style={styles.cardHeading}>Formulário CRUD</Text>
+        <Text style={styles.explainer}>
+          Preencha os campos para inserir um novo registro no estado do app. O React Native usa a prop <Text style={styles.bold}>onChangeText</Text> para atualizar os dados diretamente.
+        </Text>
 
-          <Pressable
-            style={[styles.navPill, selectedCategory === 'view_text' && styles.navPillActive]}
-            onPress={() => setSelectedCategory('view_text')}
-          >
-            <Text
-              style={[
-                styles.navPillText,
-                selectedCategory === 'view_text' && styles.navPillTextActive,
-              ]}
-            >
-              View & Text
-            </Text>
-          </Pressable>
+        {/* Input 1: Título com exibição em tempo real */}
+        <View style={styles.inputBox}>
+          <View style={styles.inputLabelRow}>
+            <Text style={styles.inputLabel}>TÍTULO DO REGISTRO:</Text>
+            <Pressable onPress={() => setIsSecure(!isSecure)}>
+              <Text style={styles.toggleText}>
+                {isSecure ? '👁 Exibir' : '🔒 Ocultar (Senha)'}
+              </Text>
+            </Pressable>
+          </View>
 
-          <Pressable
-            style={[styles.navPill, selectedCategory === 'image' && styles.navPillActive]}
-            onPress={() => setSelectedCategory('image')}
-          >
-            <Text
-              style={[
-                styles.navPillText,
-                selectedCategory === 'image' && styles.navPillTextActive,
-              ]}
-            >
-              Image
-            </Text>
-          </Pressable>
+          <TextInput
+            style={styles.textInput}
+            value={formTitle}
+            onChangeText={setFormTitle}
+            placeholder="Digite o título do registro..."
+            placeholderTextColor="#525252"
+            secureTextEntry={isSecure}
+          />
+        </View>
 
-          <Pressable
-            style={[styles.navPill, selectedCategory === 'pressable_ui' && styles.navPillActive]}
-            onPress={() => setSelectedCategory('pressable_ui')}
-          >
-            <Text
-              style={[
-                styles.navPillText,
-                selectedCategory === 'pressable_ui' && styles.navPillTextActive,
-              ]}
-            >
-              Pressable & UI
+        {/* ============================================================ */}
+        {/* TEXTO EXIBIDO DEPOIS EM TEMPO REAL (SOLICITADO PELO USUÁRIO) */}
+        {/* ============================================================ */}
+        <View style={styles.echoBox}>
+          <View style={styles.echoHeader}>
+            <Text style={styles.echoHeaderTitle}>⚡ TEXTO EXIBIDO EM TEMPO REAL:</Text>
+            <Text style={styles.echoCharCount}>{formTitle.length} caracteres</Text>
+          </View>
+
+          {formTitle.trim().length > 0 ? (
+            <Text style={styles.echoOutput}>
+              &quot;<Text style={styles.echoHighlight}>{formTitle}</Text>&quot;
             </Text>
+          ) : (
+            <Text style={styles.echoEmpty}>
+              (Campo vazio. Digite no TextInput acima para ver a renderização instantânea!)
+            </Text>
+          )}
+
+          <Text style={styles.codeSnippet}>
+            &lt;Text&gt;Texto: &#123;formTitle&#125;&lt;/Text&gt;
+          </Text>
+        </View>
+
+        {/* Input 2: Descrição */}
+        <View style={styles.inputBox}>
+          <Text style={styles.inputLabel}>DESCRIÇÃO:</Text>
+          <TextInput
+            style={[styles.textInput, styles.textArea]}
+            value={formDesc}
+            onChangeText={setFormDesc}
+            placeholder="Descreva este item do CRUD..."
+            placeholderTextColor="#525252"
+            multiline={true}
+            numberOfLines={2}
+          />
+        </View>
+
+        {/* Categoria Selector */}
+        <View style={styles.categoryPicker}>
+          <Text style={styles.inputLabel}>CATEGORIA (SECTIONLIST):</Text>
+          <View style={styles.categoryRow}>
+            {(['Performance', 'UI/UX', 'Arquitetura', 'Nativo'] as CrudCategory[]).map(
+              (cat) => (
+                <Pressable
+                  key={cat}
+                  style={[
+                    styles.catBtn,
+                    formCategory === cat && styles.catBtnActive,
+                  ]}
+                  onPress={() => setFormCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.catBtnText,
+                      formCategory === cat && styles.catBtnTextActive,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </Pressable>
+              )
+            )}
+          </View>
+        </View>
+
+        {/* Switch Status */}
+        <View style={styles.switchRow}>
+          <View>
+            <Text style={styles.switchTitle}>&lt;Switch /&gt; Status Inicial</Text>
+            <Text style={styles.switchDesc}>
+              {formActive ? 'ATIVO (Verde no CRUD)' : 'INATIVO (Pendente)'}
+            </Text>
+          </View>
+          <Switch
+            value={formActive}
+            onValueChange={setFormActive}
+            trackColor={{ false: '#262626', true: '#22c55e' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+
+        {/* Action Button: Criar */}
+        <View style={styles.actionRow}>
+          <View style={styles.btnWrap}>
+            <Button
+              title="+ Adicionar Registro ao CRUD"
+              color="#22c55e"
+              onPress={handleCreate}
+            />
+          </View>
+
+          <Pressable style={styles.viewListBtn} onPress={onNavigateToList}>
+            <Text style={styles.viewListBtnText}>Ir para Lista →</Text>
           </Pressable>
-        </ScrollView>
+        </View>
+
+        {/* Feedback visual */}
+        {showCreatedFeedback && (
+          <View style={styles.feedbackToast}>
+            <Text style={styles.feedbackToastText}>
+              ✓ Item adicionado com sucesso ao CRUD em memória!
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ========================================================================= */}
-      {/* 1. TEXTINPUT (COM TEXTO EXIBIDO DEPOIS EM TEMPO REAL) */}
+      {/* 2. COMPONENTES BÁSICOS EXPLICADOS DIDATICAMENTE */}
       {/* ========================================================================= */}
-      {shouldShow('textinput') && (
-        <View style={[styles.card, styles.cardHighlight]}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;TextInput /&gt;</Text>
-            <Text style={styles.category}>Basic Component</Text>
-          </View>
+      
+      {/* View & Flexbox */}
+      <View style={styles.card}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>&lt;View /&gt;</Text>
+          <Text style={styles.categoryBadge}>Basic Component</Text>
+        </View>
+        <Text style={styles.cardHeading}>The most fundamental component for building a UI</Text>
+        <Text style={styles.explainer}>
+          Equivalente à &lt;div&gt; da web. No React Native, ela é responsável por empilhar e organizar os elementos na tela. Possui <Text style={styles.inlineCode}>flexDirection: &#39;column&#39;</Text> por padrão.
+        </Text>
 
-          <Text style={styles.desc}>
-            A component for inputting text into the app via a keyboard.
-          </Text>
-          <Text style={styles.explainer}>
-            Utiliza a prop <Text style={styles.bold}>onChangeText</Text> para capturar o que o usuário digita no teclado do celular.
-          </Text>
-
-          {/* Input box */}
-          <View style={styles.inputContainer}>
-            <View style={styles.inputLabelRow}>
-              <Text style={styles.inputLabel}>DIGITE NO CAMPO:</Text>
-              <Pressable onPress={() => setIsSecure(!isSecure)}>
-                <Text style={styles.toggleText}>
-                  {isSecure ? 'Mostrar Texto' : 'Ocultar (Senha)'}
-                </Text>
-              </Pressable>
-            </View>
-
-            <TextInput
-              style={styles.textInput}
-              value={typedText}
-              onChangeText={setTypedText}
-              placeholder="Digite algo aqui..."
-              placeholderTextColor="#525252"
-              secureTextEntry={isSecure}
-            />
-          </View>
-
-          {/* O TEXTO É EXIBIDO AQUI DEPOIS EM TEMPO REAL */}
-          <View style={styles.echoBox}>
-            <View style={styles.echoHeader}>
-              <Text style={styles.echoHeaderTitle}>⚡ TEXTO EXIBIDO DEPOIS:</Text>
-              <Text style={styles.echoCharCount}>{typedText.length} caracteres</Text>
-            </View>
-
-            {typedText.trim().length > 0 ? (
-              <Text style={styles.echoOutput}>
-                &quot;<Text style={styles.echoHighlight}>{typedText}</Text>&quot;
-              </Text>
-            ) : (
-              <Text style={styles.echoEmpty}>
-                (Nenhum texto digitado. Escreva no TextInput acima!)
-              </Text>
-            )}
-
-            <Text style={styles.codeSnippet}>
-              &lt;Text&gt;&#123;typedText&#125;&lt;/Text&gt;
+        <View style={styles.controlsRow}>
+          <Text style={styles.controlLabel}>flexDirection:</Text>
+          <Pressable
+            style={[styles.smallBtn, direction === 'row' && styles.smallBtnActive]}
+            onPress={() => setDirection('row')}
+          >
+            <Text style={[styles.smallBtnText, direction === 'row' && styles.smallBtnTextActive]}>
+              row (linha)
             </Text>
-          </View>
-        </View>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 2. VIEW */}
-      {/* ========================================================================= */}
-      {shouldShow('view_text') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;View /&gt;</Text>
-            <Text style={styles.category}>Basic Component</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            The most fundamental component for building a UI.
-          </Text>
-          <Text style={styles.explainer}>
-            Um contêiner que suporta layout Flexbox, estilo, toques e acessibilidade. Por padrão, organiza seus filhos em coluna.
-          </Text>
-
-          <View style={styles.controlsRow}>
-            <Text style={styles.controlLabel}>flexDirection:</Text>
-            <Pressable
-              style={[styles.smallBtn, direction === 'row' && styles.smallBtnActive]}
-              onPress={() => setDirection('row')}
-            >
-              <Text style={[styles.smallBtnText, direction === 'row' && styles.smallBtnTextActive]}>
-                row
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.smallBtn, direction === 'column' && styles.smallBtnActive]}
-              onPress={() => setDirection('column')}
-            >
-              <Text style={[styles.smallBtnText, direction === 'column' && styles.smallBtnTextActive]}>
-                column
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={[styles.viewDemo, { flexDirection: direction }]}>
-            <View style={[styles.box, styles.boxGreen]}>
-              <Text style={styles.boxTextDark}>1</Text>
-            </View>
-            <View style={[styles.box, styles.boxWhite]}>
-              <Text style={styles.boxTextDark}>2</Text>
-            </View>
-            <View style={[styles.box, styles.boxDark]}>
-              <Text style={styles.boxTextLight}>3</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 3. TEXT */}
-      {/* ========================================================================= */}
-      {shouldShow('view_text') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;Text /&gt;</Text>
-            <Text style={styles.category}>Basic Component</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            A component for displaying text.
-          </Text>
-          <Text style={styles.explainer}>
-            Obrigatório para renderizar qualquer string. Suporta aninhamento, estilos tipográficos e truncamento com <Text style={styles.inlineCode}>numberOfLines</Text>.
-          </Text>
-
-          <View style={styles.controlsRow}>
-            <Text style={styles.controlLabel}>numberOfLines:</Text>
-            <Pressable
-              style={[styles.smallBtn, lines === 1 && styles.smallBtnActive]}
-              onPress={() => setLines(1)}
-            >
-              <Text style={[styles.smallBtnText, lines === 1 && styles.smallBtnTextActive]}>
-                1 linha (reticências)
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.smallBtn, lines === undefined && styles.smallBtnActive]}
-              onPress={() => setLines(undefined)}
-            >
-              <Text style={[styles.smallBtnText, lines === undefined && styles.smallBtnTextActive]}>
-                Completo
-              </Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.textDemoBox}>
-            <Text numberOfLines={lines} style={styles.textDemo}>
-              No React Native, todo texto DEVE ser encapsulado por um elemento &lt;Text&gt;. Se você colocar uma string solta dentro de uma View, o aplicativo resultará em erro.
+          </Pressable>
+          <Pressable
+            style={[styles.smallBtn, direction === 'column' && styles.smallBtnActive]}
+            onPress={() => setDirection('column')}
+          >
+            <Text style={[styles.smallBtnText, direction === 'column' && styles.smallBtnTextActive]}>
+              column (coluna)
             </Text>
+          </Pressable>
+        </View>
+
+        <View style={[styles.viewDemo, { flexDirection: direction }]}>
+          <View style={[styles.box, styles.boxGreen]}>
+            <Text style={styles.boxTextDark}>1</Text>
+          </View>
+          <View style={[styles.box, styles.boxWhite]}>
+            <Text style={styles.boxTextDark}>2</Text>
+          </View>
+          <View style={[styles.box, styles.boxDark]}>
+            <Text style={styles.boxTextLight}>3</Text>
           </View>
         </View>
-      )}
+      </View>
 
-      {/* ========================================================================= */}
-      {/* 4. IMAGE */}
-      {/* ========================================================================= */}
-      {shouldShow('image') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;Image /&gt;</Text>
-            <Text style={styles.category}>Basic Component</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            A component for displaying images.
-          </Text>
-          <Text style={styles.explainer}>
-            Exibe imagens locais (via <Text style={styles.inlineCode}>require()</Text>) ou remotas via <Text style={styles.inlineCode}>source=&#123;&#123; uri: &#39;...&#39; &#125;&#125;</Text>.
-          </Text>
-
-          <View style={styles.imageWrapper}>
-            <Image
-              source={{ uri: sampleImageUri }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-          </View>
+      {/* Text & Truncation */}
+      <View style={styles.card}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>&lt;Text /&gt;</Text>
+          <Text style={styles.categoryBadge}>Basic Component</Text>
         </View>
-      )}
+        <Text style={styles.cardHeading}>A component for displaying text</Text>
+        <Text style={styles.explainer}>
+          No React Native, todo texto DEVE estar dentro de uma tag &lt;Text&gt;. Suporta truncamento automático com reticências através da propriedade <Text style={styles.inlineCode}>numberOfLines</Text>.
+        </Text>
 
-      {/* ========================================================================= */}
-      {/* 5. PRESSABLE */}
-      {/* ========================================================================= */}
-      {shouldShow('pressable_ui') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;Pressable /&gt;</Text>
-            <Text style={styles.category}>Basic Component</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            A wrapper component that can detect various stages of press interactions on any of its children.
-          </Text>
-          <Text style={styles.explainer}>
-            Detecta toques, cliques longos e fornece o estado <Text style={styles.inlineCode}>({'{ pressed }'})</Text> para estilização dinâmica.
-          </Text>
-
-          <View style={styles.pressableRow}>
-            <Text style={styles.counterText}>Toques: {pressCount}</Text>
-            <Pressable
-              style={({ pressed }: { pressed: boolean }) => [
-                styles.pressableBtn,
-                pressed && styles.pressableBtnPressed,
-              ]}
-              onPress={() => setPressCount((c) => c + 1)}
-            >
-              <Text style={styles.pressableBtnText}>Tocar no Pressable</Text>
-            </Pressable>
-          </View>
+        <View style={styles.controlsRow}>
+          <Text style={styles.controlLabel}>numberOfLines:</Text>
+          <Pressable
+            style={[styles.smallBtn, lines === 1 && styles.smallBtnActive]}
+            onPress={() => setLines(1)}
+          >
+            <Text style={[styles.smallBtnText, lines === 1 && styles.smallBtnTextActive]}>
+              1 linha (truncado)
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.smallBtn, lines === undefined && styles.smallBtnActive]}
+            onPress={() => setLines(undefined)}
+          >
+            <Text style={[styles.smallBtnText, lines === undefined && styles.smallBtnTextActive]}>
+              Completo
+            </Text>
+          </Pressable>
         </View>
-      )}
 
-      {/* ========================================================================= */}
-      {/* 6. BUTTON & SWITCH (USER INTERFACE) */}
-      {/* ========================================================================= */}
-      {shouldShow('pressable_ui') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>&lt;Button /&gt; & &lt;Switch /&gt;</Text>
-            <Text style={styles.category}>User Interface</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            Button: A basic button component for handling touches. Switch: Renders a boolean input.
+        <View style={styles.textDemoBox}>
+          <Text numberOfLines={lines} style={styles.textDemo}>
+            O React Native compila a tag &lt;Text&gt; diretamente para os componentes nativos dos sistemas operacionais móveis: TextView no Android e UILabel no iOS.
           </Text>
-
-          {/* Official React Native Button */}
-          <View style={styles.uiItem}>
-            <View style={styles.uiLabelRow}>
-              <Text style={styles.uiTitle}>&lt;Button title=&quot;...&quot; /&gt;</Text>
-              <Text style={styles.uiClicks}>{btnClicks} cliques</Text>
-            </View>
-            <Button
-              title="Pressione o &lt;Button /&gt;"
-              color="#22c55e"
-              onPress={() => setBtnClicks((c) => c + 1)}
-            />
-          </View>
-
-          {/* Switch */}
-          <View style={styles.uiItem}>
-            <View style={styles.switchRow}>
-              <View>
-                <Text style={styles.uiTitle}>&lt;Switch value=&#123;...&#125; /&gt;</Text>
-                <Text style={styles.switchStateText}>
-                  Estado: {switchState ? 'LIGADO (true)' : 'DESLIGADO (false)'}
-                </Text>
-              </View>
-              <Switch
-                value={switchState}
-                onValueChange={setSwitchState}
-                trackColor={{ false: '#262626', true: '#22c55e' }}
-                thumbColor="#ffffff"
-              />
-            </View>
-          </View>
         </View>
-      )}
+      </View>
 
-      {/* ========================================================================= */}
-      {/* 7. SCROLLVIEW & STYLESHEET */}
-      {/* ========================================================================= */}
-      {shouldShow('all') && (
-        <View style={styles.card}>
-          <View style={styles.tagRow}>
-            <Text style={styles.tag}>ScrollView & StyleSheet</Text>
-            <Text style={styles.category}>Basic Components</Text>
-          </View>
-
-          <Text style={styles.desc}>
-            ScrollView: Provides a scrolling container. StyleSheet: Provides an abstraction layer similar to CSS stylesheets.
-          </Text>
-          <Text style={styles.explainer}>
-            Toda esta tela está encapsulada dentro de um <Text style={styles.bold}>&lt;ScrollView&gt;</Text> para permitir rolagem vertical, e todas as cores, bordas e alinhamentos são definidos com <Text style={styles.bold}>StyleSheet.create</Text>.
-          </Text>
-
-          <View style={styles.codeBlock}>
-            <Text style={styles.codeLine}>const styles = StyleSheet.create(&#123;</Text>
-            <Text style={styles.codeLine}>{'  '}card: &#123; backgroundColor: &#39;#000000&#39;, borderColor: &#39;#22c55e&#39; &#125;,</Text>
-            <Text style={styles.codeLine}>&#125;);</Text>
-          </View>
+      {/* Image */}
+      <View style={styles.card}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>&lt;Image /&gt;</Text>
+          <Text style={styles.categoryBadge}>Basic Component</Text>
         </View>
-      )}
+        <Text style={styles.cardHeading}>A component for displaying images</Text>
+        <Text style={styles.explainer}>
+          Exibe imagens locais ou remotas via <Text style={styles.inlineCode}>source=&#123;&#123; uri: &#39;...&#39; &#125;&#125;</Text>. Cada item do nosso CRUD inclui um thumbnail renderizado com esta tag.
+        </Text>
+
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: sampleImageUri }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        </View>
+      </View>
+
+      {/* Pressable */}
+      <View style={styles.card}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>&lt;Pressable /&gt;</Text>
+          <Text style={styles.categoryBadge}>Basic Component</Text>
+        </View>
+        <Text style={styles.cardHeading}>
+          A wrapper component that can detect various stages of press interactions
+        </Text>
+        <Text style={styles.explainer}>
+          Componente de toque moderno que substitui o TouchableOpacity, fornecendo estados dinâmicos <Text style={styles.inlineCode}>({'{ pressed }'})</Text>.
+        </Text>
+
+        <View style={styles.pressableRow}>
+          <Text style={styles.counterText}>Cliques: {pressCount}</Text>
+          <Pressable
+            style={({ pressed }: { pressed: boolean }) => [
+              styles.pressableBtn,
+              pressed && styles.pressableBtnPressed,
+            ]}
+            onPress={() => setPressCount((c) => c + 1)}
+          >
+            <Text style={styles.pressableBtnText}>Tocar no Pressable</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* StyleSheet & ScrollView */}
+      <View style={styles.card}>
+        <View style={styles.tagRow}>
+          <Text style={styles.tag}>ScrollView & StyleSheet</Text>
+          <Text style={styles.categoryBadge}>Basic Components</Text>
+        </View>
+        <Text style={styles.cardHeading}>ScrollView & StyleSheet.create</Text>
+        <Text style={styles.explainer}>
+          Esta tela inteira utiliza o <Text style={styles.bold}>&lt;ScrollView&gt;</Text> para permitir rolagem fluida e confortável com a roda do mouse e toques de tela. Todos os estilos são 100% nativos.
+        </Text>
+
+        <View style={styles.codeSnippetCard}>
+          <Text style={styles.codeText}>
+            const styles = StyleSheet.create(&#123; card: &#123; backgroundColor: &#39;#000000&#39; &#125; &#125;);
+          </Text>
+        </View>
+      </View>
     </ScrollView>
   );
-});
-
-ComponentsScreen.displayName = 'ComponentsScreen';
+};
 
 const styles = StyleSheet.create({
   scrollView: {
@@ -450,75 +376,61 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 90,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 100,
+    gap: 18,
   },
   introHeader: {
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    paddingBottom: 14,
+    paddingBottom: 16,
+    gap: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   badge: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#22c55e',
     fontFamily: 'monospace',
     letterSpacing: 1,
-    marginBottom: 4,
+  },
+  badgeSub: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    color: '#ffffff',
+    backgroundColor: '#122416',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1d3e23',
   },
   mainTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#a3a3a3',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  quickNavContainer: {
-    marginVertical: 2,
-  },
-  quickNavScroll: {
-    gap: 8,
-    paddingVertical: 2,
-  },
-  navPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#090e0b',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  navPillActive: {
-    backgroundColor: '#22c55e',
-    borderColor: '#22c55e',
-  },
-  navPillText: {
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: 'monospace',
-    color: '#737373',
-  },
-  navPillTextActive: {
-    color: '#000000',
-    fontWeight: '700',
+    lineHeight: 20,
   },
   card: {
     backgroundColor: '#080c09',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 16,
-    padding: 16,
-    gap: 10,
+    padding: 18,
+    gap: 12,
   },
   cardHighlight: {
-    borderColor: 'rgba(34, 197, 94, 0.5)',
+    borderColor: 'rgba(34, 197, 94, 0.45)',
     backgroundColor: '#08100a',
   },
   tagRow: {
@@ -535,25 +447,25 @@ const styles = StyleSheet.create({
     color: '#22c55e',
     backgroundColor: '#0d1a10',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#193420',
   },
-  category: {
-    fontSize: 10,
+  categoryBadge: {
+    fontSize: 11,
     fontFamily: 'monospace',
     color: '#737373',
   },
-  desc: {
-    fontSize: 13,
+  cardHeading: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
   },
   explainer: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#a3a3a3',
-    lineHeight: 18,
+    lineHeight: 19,
   },
   bold: {
     color: '#ffffff',
@@ -562,9 +474,9 @@ const styles = StyleSheet.create({
   inlineCode: {
     fontFamily: 'monospace',
     color: '#22c55e',
-    fontSize: 11,
+    fontSize: 12,
   },
-  inputContainer: {
+  inputBox: {
     backgroundColor: '#0a0f0c',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -580,13 +492,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   inputLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'monospace',
     color: '#737373',
     fontWeight: '700',
   },
   toggleText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#22c55e',
     fontWeight: '600',
   },
@@ -597,15 +509,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     color: '#ffffff',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     fontSize: 14,
+  },
+  textArea: {
+    minHeight: 56,
   },
   echoBox: {
     backgroundColor: '#0c160f',
     borderWidth: 1,
     borderColor: '#1b3822',
     borderRadius: 10,
-    padding: 12,
+    padding: 14,
     gap: 6,
   },
   echoHeader: {
@@ -619,18 +534,18 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   echoHeaderTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'monospace',
     fontWeight: '700',
     color: '#22c55e',
   },
   echoCharCount: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'monospace',
     color: '#737373',
   },
   echoOutput: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '700',
     fontFamily: 'monospace',
     color: '#ffffff',
@@ -646,10 +561,97 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   codeSnippet: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: 'monospace',
     color: '#22c55e',
     marginTop: 2,
+  },
+  categoryPicker: {
+    gap: 6,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  catBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#0d130e',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  catBtnActive: {
+    backgroundColor: '#22c55e',
+    borderColor: '#22c55e',
+  },
+  catBtnText: {
+    fontSize: 11,
+    fontFamily: 'monospace',
+    color: '#a3a3a3',
+    fontWeight: '600',
+  },
+  catBtnTextActive: {
+    color: '#000000',
+    fontWeight: '800',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#0a0e0b',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 10,
+    padding: 12,
+  },
+  switchTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  switchDesc: {
+    fontSize: 11,
+    color: '#22c55e',
+    marginTop: 2,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+  btnWrap: {
+    flex: 1,
+    minWidth: 180,
+  },
+  viewListBtn: {
+    backgroundColor: '#0a0e0b',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 8,
+  },
+  viewListBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  feedbackToast: {
+    backgroundColor: '#0c1a10',
+    borderWidth: 1,
+    borderColor: '#22c55e',
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+  },
+  feedbackToastText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '700',
   },
   controlsRow: {
     flexDirection: 'row',
@@ -658,13 +660,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   controlLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#737373',
   },
   smallBtn: {
     backgroundColor: '#171717',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
   },
   smallBtnActive: {
@@ -680,19 +682,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   viewDemo: {
-    minHeight: 60,
+    minHeight: 68,
     backgroundColor: '#000000',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 10,
+    padding: 12,
     justifyContent: 'space-around',
     alignItems: 'center',
     gap: 8,
   },
   box: {
-    width: 36,
-    height: 32,
+    width: 42,
+    height: 36,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -709,34 +711,34 @@ const styles = StyleSheet.create({
   boxTextDark: {
     color: '#000000',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
   },
   boxTextLight: {
     color: '#ffffff',
     fontWeight: '800',
-    fontSize: 12,
+    fontSize: 13,
   },
   textDemoBox: {
     backgroundColor: '#000000',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 10,
+    padding: 12,
   },
   textDemo: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#d4d4d4',
-    lineHeight: 18,
+    lineHeight: 20,
   },
   imageWrapper: {
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   image: {
     width: '100%',
-    height: 140,
+    height: 150,
     backgroundColor: '#0a0f0c',
   },
   pressableRow: {
@@ -747,7 +749,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   counterText: {
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: 'monospace',
     fontWeight: '700',
     color: '#22c55e',
@@ -759,59 +761,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   pressableBtnPressed: {
-    opacity: 0.7,
+    opacity: 0.75,
   },
   pressableBtnText: {
     color: '#000000',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 13,
   },
-  uiItem: {
-    backgroundColor: '#000000',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
-    padding: 12,
-    gap: 8,
-  },
-  uiLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
-  },
-  uiTitle: {
-    fontSize: 11,
-    fontFamily: 'monospace',
-    fontWeight: '700',
-    color: '#22c55e',
-  },
-  uiClicks: {
-    fontSize: 11,
-    fontFamily: 'monospace',
-    color: '#737373',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  switchStateText: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    marginTop: 2,
-  },
-  codeBlock: {
+  codeSnippetCard: {
     backgroundColor: '#000000',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
   },
-  codeLine: {
+  codeText: {
     fontSize: 11,
     fontFamily: 'monospace',
     color: '#22c55e',
